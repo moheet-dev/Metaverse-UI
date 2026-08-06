@@ -1,0 +1,158 @@
+<div class="room-page" [attr.data-theme]="theme">
+
+  <!-- Full-screen background image -->
+  <div class="room-bg"></div>
+
+  <!-- HUD Top Bar -->
+  <header class="room-hud">
+    <div class="hud-left">
+      <div class="hud-logo">
+        <span class="logo-icon">🏢</span>
+        <span class="logo-name">Meta<span>Verse</span></span>
+      </div>
+      <div class="hud-badge">
+        <span class="badge-dot"></span>
+        <span>Room: <strong>{{ roomId }}</strong></span>
+      </div>
+    </div>
+
+    <div class="hud-center">
+      <div class="hud-user">
+        <span class="user-avatar">👤</span>
+        <span class="user-name">{{ username }}</span>
+        @if (isInMessageMode) {
+          <span class="messaging-hud-badge">🔒 Messaging</span>
+        }
+      </div>
+    </div>
+
+    <div class="hud-right">
+      <!-- Theme toggle -->
+      <button
+        class="btn-theme"
+        (click)="toggleTheme()"
+        id="btn-toggle-theme"
+        [title]="theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'"
+      >
+        @if (theme === 'light') { <span>🌙</span> } @else { <span>☀️</span> }
+      </button>
+
+      <button class="btn-leave" (click)="leaveRoom()" id="btn-leave-room" [disabled]="isLeaving">
+        @if (isLeaving) {
+          <span class="btn-leave-spinner"></span> Leaving…
+        } @else {
+          <span>🚪</span> Leave Room
+        }
+      </button>
+    </div>
+  </header>
+
+  <!-- Game World -->
+  <main class="office-view">
+    <div class="office-image-wrapper">
+
+      <!-- Local player avatar -->
+      <div
+        class="player-avatar player-avatar--self"
+        [style.left]="avatarX + '%'"
+        [style.top]="avatarY + '%'"
+      >
+        @if (isInMessageMode) {
+          <span class="messaging-lock-pin">🔒</span>
+        }
+        <img class="avatar-sprite" [src]="avatarUrl" [alt]="username" />
+        <span class="avatar-label">{{ username }}</span>
+      </div>
+
+      <!-- Other players -->
+      @for (player of otherPlayers(); track player.username) {
+        <div
+          class="player-avatar player-avatar--other"
+          [style.left]="player.x + '%'"
+          [style.top]="player.y + '%'"
+        >
+          <!-- Proximity chat bubble — only shown when within threshold -->
+          @if (isNearby(player.username)) {
+            <button
+              class="chat-bubble-btn"
+              (click)="openChat(player.username)"
+              [attr.aria-label]="'Message ' + player.username"
+            >
+              💬
+            </button>
+          }
+          <img class="avatar-sprite" [src]="player.avatarUrl" [alt]="player.username" />
+          <span class="avatar-label">{{ player.username }}</span>
+        </div>
+      }
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- Draggable Chat Windows                                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  @for (win of chatWindows(); track win.id) {
+    <div
+      class="chat-window"
+      [style.left.px]="win.position.x"
+      [style.top.px]="win.position.y"
+      [style.z-index]="win.zIndex"
+      (mousedown)="bringToFront(win.id)"
+    >
+      <!-- Header / drag handle -->
+      <div
+        class="chat-window-header"
+        (mousedown)="startDrag(win.id, $event)"
+        (touchstart)="startDrag(win.id, $event)"
+      >
+        <div class="chat-header-info">
+          <span class="chat-partner-icon">👤</span>
+          <span class="chat-partner-name">{{ win.partnerUsername }}</span>
+        </div>
+        <button class="chat-close-btn" (click)="closeChat(win.id)" title="Close chat">✕</button>
+      </div>
+
+      <!-- Message list -->
+      <div class="chat-messages">
+        @if (win.messages.length === 0) {
+          <p class="chat-empty">
+            <span class="chat-empty-icon">💬</span>
+            Say hi to <strong>{{ win.partnerUsername }}</strong>!
+          </p>
+        }
+        @for (msg of win.messages; track $index) {
+          <div
+            class="chat-msg"
+            [class.chat-msg--sent]="msg.sent"
+            [class.chat-msg--received]="!msg.sent"
+          >
+            <span class="chat-bubble-text">{{ msg.text }}</span>
+            <span class="chat-msg-time">{{ msg.timestamp | date:'HH:mm' }}</span>
+          </div>
+        }
+      </div>
+
+      <!-- Input row -->
+      <div class="chat-input-row">
+        <input
+          class="chat-input"
+          type="text"
+          [placeholder]="'Message ' + win.partnerUsername + '…'"
+          [value]="win.inputText"
+          (input)="updateInput(win.id, $any($event.target).value)"
+          (keydown)="onInputKeydown($event, win.id)"
+        />
+        <button
+          class="chat-send-btn"
+          (click)="sendMessage(win.id)"
+          [disabled]="!win.inputText.trim()"
+          title="Send"
+        >
+          ➤
+        </button>
+      </div>
+    </div>
+  }
+
+  <app-toast-container />
+</div>

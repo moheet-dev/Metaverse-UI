@@ -1,0 +1,451 @@
+<!-- Global Toast Notifications -->
+<app-toast-container />
+
+<!-- Theme Toggle (fixed top-right, visible on all stages) -->
+<button
+  class="login-theme-toggle"
+  (click)="toggleTheme()"
+  id="btn-login-theme-toggle"
+  [title]="theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'"
+>
+  @if (theme === 'light') { <span>🌙</span> } @else { <span>☀️</span> }
+</button>
+
+<div class="login-page" [attr.data-theme]="theme">
+
+  <!-- Animated background room elements -->
+  <div class="room-preview" aria-hidden="true">
+    @for (strip of woodStrips; track strip.left) {
+      <div class="wood-strip" [style.left]="strip.left"></div>
+    }
+    <div class="preview-desk desk-1"></div>
+    <div class="preview-desk desk-2"></div>
+    <div class="preview-desk desk-3"></div>
+    <div class="preview-chair chair-1"></div>
+    <div class="preview-chair chair-2"></div>
+    <div class="preview-chair chair-3"></div>
+    <div class="preview-plant plant-1">🌿</div>
+    <div class="preview-plant plant-2">🪴</div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="login-card" role="main">
+
+    <!-- Mini-map decoration -->
+    <div class="minimap-decoration" aria-hidden="true">
+      <div class="mm-floor"></div>
+      <div class="mm-desk d1"></div>
+      <div class="mm-desk d2"></div>
+      <div class="mm-chair c1"></div>
+      <div class="mm-chair c2"></div>
+      <div class="mm-plant"></div>
+    </div>
+
+    <!-- Logo -->
+    <div class="login-logo">
+      <div class="logo-icon">🏢</div>
+      <div class="logo-text">
+        <h1>Meta<span>Verse</span></h1>
+        <p>Virtual Office Space</p>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- STAGE 1: Authentication                    -->
+    <!-- ══════════════════════════════════════════ -->
+    @if (stage() === 'auth') {
+      <div class="stage-content">
+
+        <!-- Mode toggle tabs -->
+        <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+          <button
+            id="tab-login"
+            role="tab"
+            type="button"
+            class="auth-tab"
+            [class.active]="authMode() === 'login'"
+            [attr.aria-selected]="authMode() === 'login'"
+            (click)="switchMode('login')"
+          >Sign In</button>
+          <button
+            id="tab-register"
+            role="tab"
+            type="button"
+            class="auth-tab"
+            [class.active]="authMode() === 'register'"
+            [attr.aria-selected]="authMode() === 'register'"
+            (click)="switchMode('register')"
+          >Register</button>
+        </div>
+
+        <p class="login-tagline">
+          @if (authMode() === 'login') { Welcome back. Sign in to access your virtual workspace. }
+          @else { Create your account and step into the MetaVerse. }
+        </p>
+
+        <form (ngSubmit)="onAuthSubmit()" novalidate>
+
+          <!-- Username -->
+          <div class="form-group" [class.has-error]="usernameError()">
+            <label for="username">Username</label>
+            <div class="input-wrapper">
+              <span class="input-icon">👤</span>
+              <input
+                id="username"
+                type="text"
+                name="username"
+                [(ngModel)]="username"
+                [placeholder]="authMode() === 'register' ? 'Choose a unique username' : 'Enter your username'"
+                autocomplete="username"
+                required
+                maxlength="50"
+                aria-label="Username"
+                [class.input-error]="usernameError()"
+                (input)="usernameError.set('')"
+              />
+              <div class="input-focus-indicator"></div>
+            </div>
+            @if (usernameError()) {
+              <p class="inline-error" role="alert"><span class="error-icon">⚠</span> {{ usernameError() }}</p>
+            } @else {
+              <p class="input-hint">
+                @if (authMode() === 'register') { Minimum 3 characters. Unique across all users. }
+                @else { Enter the username you registered with. }
+              </p>
+            }
+          </div>
+
+          <!-- Password -->
+          <div class="form-group" [class.has-error]="passwordError()">
+            <label for="password">Password</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input
+                id="password"
+                type="password"
+                name="password"
+                [(ngModel)]="password"
+                [placeholder]="authMode() === 'register' ? 'Create a strong password' : 'Enter your password'"
+                autocomplete="current-password"
+                required
+                aria-label="Password"
+                [class.input-error]="passwordError()"
+                (input)="passwordError.set('')"
+              />
+              <div class="input-focus-indicator"></div>
+            </div>
+            @if (passwordError()) {
+              <p class="inline-error" role="alert"><span class="error-icon">⚠</span> {{ passwordError() }}</p>
+            } @else {
+              <p class="input-hint">
+                @if (authMode() === 'register') { Minimum 6 characters. Hashed server-side. }
+                @else { Enter the password you set during registration. }
+              </p>
+            }
+          </div>
+
+          <!-- Confirm Password (register only) -->
+          @if (authMode() === 'register') {
+            <div class="form-group" [class.has-error]="confirmPasswordError()">
+              <label for="confirmPassword">Confirm Password</label>
+              <div class="input-wrapper">
+                <span class="input-icon">🔐</span>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  name="confirmPassword"
+                  [(ngModel)]="confirmPassword"
+                  placeholder="Re-enter your password"
+                  autocomplete="new-password"
+                  required
+                  aria-label="Confirm Password"
+                  [class.input-error]="confirmPasswordError()"
+                  (input)="confirmPasswordError.set('')"
+                />
+                <div class="input-focus-indicator"></div>
+              </div>
+              @if (confirmPasswordError()) {
+                <p class="inline-error" role="alert"><span class="error-icon">⚠</span> {{ confirmPasswordError() }}</p>
+              } @else {
+                <p class="input-hint">Must match the password above.</p>
+              }
+            </div>
+          }
+
+          <!-- Submit -->
+          <div class="auth-action">
+            <button
+              id="btn-auth-submit"
+              type="submit"
+              class="btn btn-primary btn-full"
+              [disabled]="!username || !password || (authMode() === 'register' && !confirmPassword) || isLoadingAuth()"
+            >
+              @if (isLoadingAuth()) {
+                <span class="btn-spinner"></span>
+                @if (authMode() === 'login') { Signing in… } @else { Creating account… }
+              } @else {
+                @if (authMode() === 'login') {
+                  <span class="btn-icon">→</span> Sign In
+                } @else {
+                  <span class="btn-icon">✦</span> Create Account
+                }
+              }
+            </button>
+          </div>
+
+        </form>
+
+        <div class="login-footer">
+          <div class="status-dot"></div>
+          <p>Servers online &nbsp;·&nbsp; 0 rooms active</p>
+        </div>
+
+      </div>
+    }
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- STAGE 2: Room Choice                       -->
+    <!-- ══════════════════════════════════════════ -->
+    @if (stage() === 'room-choice') {
+      <div class="stage-content">
+
+        <button id="btn-back-to-auth" type="button" class="btn-back" (click)="goBackToAuth()">← Back</button>
+
+        <div class="room-stage-header">
+          <div class="room-stage-avatar">🚪</div>
+          <div>
+            <p class="room-stage-label">Logged in as</p>
+            <p class="room-stage-user">{{ username }}</p>
+          </div>
+        </div>
+
+        <p class="login-tagline">What would you like to do?</p>
+
+        <div class="room-choice-grid">
+          <button
+            id="btn-choose-create"
+            type="button"
+            class="room-choice-card room-choice-create"
+            (click)="chooseCreate()"
+          >
+            <div class="rcc-icon">✦</div>
+            <div class="rcc-title">Create Room</div>
+            <div class="rcc-desc">Start a fresh virtual office and invite your team.</div>
+            <div class="rcc-arrow">→</div>
+          </button>
+
+          <button
+            id="btn-choose-join"
+            type="button"
+            class="room-choice-card room-choice-join"
+            (click)="chooseJoin()"
+          >
+            <div class="rcc-icon">🔑</div>
+            <div class="rcc-title">Join Room</div>
+            <div class="rcc-desc">Enter an existing room with a code and password.</div>
+            <div class="rcc-arrow">→</div>
+          </button>
+        </div>
+
+        <div class="login-footer">
+          <div class="status-dot"></div>
+          <p>Servers online &nbsp;·&nbsp; 0 rooms active</p>
+        </div>
+
+      </div>
+    }
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- STAGE 3a: Create Room                      -->
+    <!-- ══════════════════════════════════════════ -->
+    @if (stage() === 'create-room') {
+      <div class="stage-content">
+
+        <button id="btn-back-to-choice-create" type="button" class="btn-back" (click)="goBackToChoice()" [disabled]="isLoadingCreate()">← Back</button>
+
+        <div class="room-stage-header">
+          <div class="room-stage-avatar">✦</div>
+          <div>
+            <p class="room-stage-label">Creating a new room as</p>
+            <p class="room-stage-user">{{ username }}</p>
+          </div>
+        </div>
+
+        <p class="login-tagline">Set a unique room code and a password to protect your space.</p>
+
+        <form (ngSubmit)="submitCreateRoom()" novalidate>
+
+          <div class="form-group" [class.has-error]="roomCodeError()">
+            <label for="create-roomCode">Room Code</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🏷</span>
+              <input
+                id="create-roomCode"
+                type="text"
+                name="roomCode"
+                [(ngModel)]="roomCode"
+                placeholder="e.g. office-alpha-42"
+                autocomplete="off"
+                required
+                maxlength="100"
+                aria-label="Room Code"
+                [class.input-error]="roomCodeError()"
+                (input)="roomCodeError.set('')"
+              />
+              <div class="input-focus-indicator"></div>
+            </div>
+            @if (roomCodeError()) {
+              <p class="inline-error" role="alert"><span class="error-icon">⚠</span> {{ roomCodeError() }}</p>
+            } @else {
+              <p class="input-hint">Letters, numbers, hyphens and underscores only.</p>
+            }
+          </div>
+
+          <div class="form-group" [class.has-error]="roomPasswordError()">
+            <label for="create-roomPassword">Room Password</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🔑</span>
+              <input
+                id="create-roomPassword"
+                type="password"
+                name="roomPassword"
+                [(ngModel)]="roomPassword"
+                placeholder="Set a room access password"
+                autocomplete="off"
+                required
+                aria-label="Room Password"
+                [class.input-error]="roomPasswordError()"
+                (input)="roomPasswordError.set('')"
+              />
+              <div class="input-focus-indicator"></div>
+            </div>
+            @if (roomPasswordError()) {
+              <p class="inline-error" role="alert"><span class="error-icon">⚠</span> {{ roomPasswordError() }}</p>
+            } @else {
+              <p class="input-hint">Share this with your team so they can join.</p>
+            }
+          </div>
+
+          <div class="auth-action">
+            <button
+              id="btn-create-room"
+              type="submit"
+              class="btn btn-create btn-full"
+              [disabled]="!roomCode || !roomPassword || isLoadingCreate()"
+            >
+              @if (isLoadingCreate()) {
+                <span class="btn-spinner"></span> Creating…
+              } @else {
+                <span class="btn-icon">✦</span> Create Room
+              }
+            </button>
+          </div>
+
+        </form>
+
+        <div class="login-footer">
+          <div class="status-dot"></div>
+          <p>Servers online &nbsp;·&nbsp; 0 rooms active</p>
+        </div>
+
+      </div>
+    }
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- STAGE 3b: Join Room                        -->
+    <!-- ══════════════════════════════════════════ -->
+    @if (stage() === 'join-room') {
+      <div class="stage-content">
+
+        <button id="btn-back-to-choice-join" type="button" class="btn-back" (click)="goBackToChoice()" [disabled]="isLoadingJoin()">← Back</button>
+
+        <div class="room-stage-header">
+          <div class="room-stage-avatar">🔑</div>
+          <div>
+            <p class="room-stage-label">Joining a room as</p>
+            <p class="room-stage-user">{{ username }}</p>
+          </div>
+        </div>
+
+        <p class="login-tagline">Enter the room code and password provided by your host.</p>
+
+        <form (ngSubmit)="submitJoinRoom()" novalidate>
+
+          <div class="form-group" [class.has-error]="roomCodeError()">
+            <label for="join-roomCode">Room Code</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🏷</span>
+              <input
+                id="join-roomCode"
+                type="text"
+                name="roomCode"
+                [(ngModel)]="roomCode"
+                placeholder="e.g. office-alpha-42"
+                autocomplete="off"
+                required
+                maxlength="100"
+                aria-label="Room Code"
+                [class.input-error]="roomCodeError()"
+                (input)="roomCodeError.set('')"
+              />
+              <div class="input-focus-indicator"></div>
+            </div>
+            @if (roomCodeError()) {
+              <p class="inline-error" role="alert"><span class="error-icon">⚠</span> {{ roomCodeError() }}</p>
+            } @else {
+              <p class="input-hint">Ask your host for the room code.</p>
+            }
+          </div>
+
+          <div class="form-group" [class.has-error]="roomPasswordError()">
+            <label for="join-roomPassword">Room Password</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🔑</span>
+              <input
+                id="join-roomPassword"
+                type="password"
+                name="roomPassword"
+                [(ngModel)]="roomPassword"
+                placeholder="Enter the room password"
+                autocomplete="off"
+                required
+                aria-label="Room Password"
+                [class.input-error]="roomPasswordError()"
+                (input)="roomPasswordError.set('')"
+              />
+              <div class="input-focus-indicator"></div>
+            </div>
+            @if (roomPasswordError()) {
+              <p class="inline-error" role="alert"><span class="error-icon">⚠</span> {{ roomPasswordError() }}</p>
+            } @else {
+              <p class="input-hint">Set by the room creator. Case-sensitive.</p>
+            }
+          </div>
+
+          <div class="auth-action">
+            <button
+              id="btn-join-room"
+              type="submit"
+              class="btn btn-primary btn-full"
+              [disabled]="!roomCode || !roomPassword || isLoadingJoin()"
+            >
+              @if (isLoadingJoin()) {
+                <span class="btn-spinner"></span> Joining…
+              } @else {
+                <span class="btn-icon">→</span> Join Room
+              }
+            </button>
+          </div>
+
+        </form>
+
+        <div class="login-footer">
+          <div class="status-dot"></div>
+          <p>Servers online &nbsp;·&nbsp; 0 rooms active</p>
+        </div>
+
+      </div>
+    }
+
+  </div>
+</div>
