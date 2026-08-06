@@ -23,11 +23,13 @@
         @if (isInMessageMode) {
           <span class="messaging-hud-badge">🔒 Messaging</span>
         }
+        @if (videoSessions().length > 0) {
+          <span class="video-hud-badge">📹 {{ videoSessions().length }} call{{ videoSessions().length > 1 ? 's' : '' }}</span>
+        }
       </div>
     </div>
 
     <div class="hud-right">
-      <!-- Theme toggle -->
       <button
         class="btn-theme"
         (click)="toggleTheme()"
@@ -71,15 +73,24 @@
           [style.left]="player.x + '%'"
           [style.top]="player.y + '%'"
         >
-          <!-- Proximity chat bubble — only shown when within threshold -->
+          <!-- Proximity action buttons — only shown when within threshold -->
           @if (isNearby(player.username)) {
-            <button
-              class="chat-bubble-btn"
-              (click)="openChat(player.username)"
-              [attr.aria-label]="'Message ' + player.username"
-            >
-              💬
-            </button>
+            <div class="proximity-actions">
+              <button
+                class="prox-btn prox-btn--chat"
+                (click)="openChat(player.username)"
+                [attr.aria-label]="'Message ' + player.username"
+              >
+                💬 Chat
+              </button>
+              <button
+                class="prox-btn prox-btn--video"
+                (click)="startVideoCall(player.username)"
+                [attr.aria-label]="'Video call ' + player.username"
+              >
+                📹 Video
+              </button>
+            </div>
           }
           <img class="avatar-sprite" [src]="player.avatarUrl" [alt]="player.username" />
           <span class="avatar-label">{{ player.username }}</span>
@@ -88,9 +99,9 @@
     </div>
   </main>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- Draggable Chat Windows                                                  -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- ════════════════════════════════════════════════════════════
+       Draggable Chat Windows
+       ════════════════════════════════════════════════════════════ -->
   @for (win of chatWindows(); track win.id) {
     <div
       class="chat-window"
@@ -99,7 +110,6 @@
       [style.z-index]="win.zIndex"
       (mousedown)="bringToFront(win.id)"
     >
-      <!-- Header / drag handle -->
       <div
         class="chat-window-header"
         (mousedown)="startDrag(win.id, $event)"
@@ -112,7 +122,6 @@
         <button class="chat-close-btn" (click)="closeChat(win.id)" title="Close chat">✕</button>
       </div>
 
-      <!-- Message list -->
       <div class="chat-messages">
         @if (win.messages.length === 0) {
           <p class="chat-empty">
@@ -132,7 +141,6 @@
         }
       </div>
 
-      <!-- Input row -->
       <div class="chat-input-row">
         <input
           class="chat-input"
@@ -151,6 +159,138 @@
           ➤
         </button>
       </div>
+    </div>
+  }
+
+  <!-- ════════════════════════════════════════════════════════════
+       Draggable Video Call Windows
+       ════════════════════════════════════════════════════════════ -->
+  @for (session of videoSessions(); track session.partnerId) {
+    <div
+      class="video-window"
+      [class.video-window--incoming]="session.state === 'incoming'"
+      [class.video-window--calling]="session.state === 'calling'"
+      [class.video-window--connected]="session.state === 'connected'"
+      [style.left.px]="session.position.x"
+      [style.top.px]="session.position.y"
+      [style.z-index]="session.zIndex"
+      (mousedown)="bringVideoToFront(session.partnerId)"
+    >
+      <!-- Header / drag handle -->
+      <div
+        class="video-window-header"
+        (mousedown)="startVideoDrag(session.partnerId, $event)"
+        (touchstart)="startVideoDrag(session.partnerId, $event)"
+      >
+        <div class="video-header-info">
+          <span class="video-state-dot"
+            [class.dot--calling]="session.state === 'calling'"
+            [class.dot--incoming]="session.state === 'incoming'"
+            [class.dot--connected]="session.state === 'connected'"
+          ></span>
+          <span class="video-partner-name">{{ session.partnerId }}</span>
+          <span class="video-state-label">
+            @if (session.state === 'calling')   { · Calling… }
+            @if (session.state === 'incoming')  { · Incoming Call }
+            @if (session.state === 'connected') { · Connected }
+          </span>
+        </div>
+        <!-- End call (top-right X) -->
+        <button
+          class="video-end-btn"
+          (click)="endVideoCall(session.partnerId)"
+          title="End call"
+        >✕</button>
+      </div>
+
+      <!-- ── CALLING STATE ── -->
+      @if (session.state === 'calling') {
+        <div class="video-status-area">
+          <div class="video-calling-spinner"></div>
+          <p class="video-status-text">Calling <strong>{{ session.partnerId }}</strong>…</p>
+          <p class="video-status-sub">Waiting for them to accept</p>
+        </div>
+      }
+
+      <!-- ── INCOMING STATE ── -->
+      @if (session.state === 'incoming') {
+        <div class="video-status-area">
+          <div class="video-incoming-icon">📹</div>
+          <p class="video-status-text"><strong>{{ session.partnerId }}</strong> is calling you</p>
+          <div class="video-incoming-actions">
+            <button class="btn-accept" (click)="acceptVideoCall(session.partnerId)">
+              <span>✓</span> Accept
+            </button>
+            <button class="btn-reject" (click)="rejectVideoCall(session.partnerId)">
+              <span>✕</span> Decline
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- ── CONNECTED STATE — video feeds ── -->
+      @if (session.state === 'connected') {
+        <div class="video-feed-area">
+          <!-- Remote video (main) -->
+          <video
+            appVideoStream
+            [stream]="session.remoteStream"
+            class="video-remote"
+            autoplay
+            playsinline
+            [muted]="false"
+          ></video>
+
+          <!-- Local video (picture-in-picture) -->
+          <video
+            appVideoStream
+            [stream]="session.localStream"
+            class="video-local-pip"
+            autoplay
+            playsinline
+            muted
+          ></video>
+
+          <!-- Camera-off overlay -->
+          @if (session.isCameraOff) {
+            <div class="video-cam-off-overlay">
+              <span>📷</span>
+              <span>Camera off</span>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ── Controls bar (only when connected) ── -->
+      @if (session.state === 'connected') {
+        <div class="video-controls">
+          <button
+            class="video-ctrl-btn"
+            [class.video-ctrl-btn--active]="session.isMuted"
+            (click)="toggleMute(session.partnerId)"
+            [title]="session.isMuted ? 'Unmute' : 'Mute'"
+          >
+            {{ session.isMuted ? '🔇' : '🎤' }}
+          </button>
+
+          <button
+            class="video-ctrl-btn"
+            [class.video-ctrl-btn--active]="session.isCameraOff"
+            (click)="toggleCamera(session.partnerId)"
+            [title]="session.isCameraOff ? 'Show camera' : 'Hide camera'"
+          >
+            {{ session.isCameraOff ? '📷' : '🎥' }}
+          </button>
+
+          <button
+            class="video-ctrl-btn video-ctrl-btn--hangup"
+            (click)="endVideoCall(session.partnerId)"
+            title="End call"
+          >
+            📞
+          </button>
+        </div>
+      }
     </div>
   }
 
