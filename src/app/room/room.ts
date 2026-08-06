@@ -90,7 +90,7 @@ export class RoomComponent implements OnInit, OnDestroy {
 
   otherPlayers = signal<OtherPlayer[]>([]);
   nearbyPlayers = signal<string[]>([]);
-  chatWindows   = signal<ChatWindow[]>([]);
+  chatWindows = signal<ChatWindow[]>([]);
 
   /** Expose video sessions to template */
   get videoSessions() { return this.videoCallService.sessions; }
@@ -117,12 +117,12 @@ export class RoomComponent implements OnInit, OnDestroy {
   private lastBroadcastMs = 0;
 
   // ── DI ──────────────────────────────────────────────────────────────────────
-  private route           = inject(ActivatedRoute);
-  private router          = inject(Router);
-  private api             = inject(ApiService);
-  private toast           = inject(ToastService);
-  private ws              = inject(WebSocketService);
-  private ngZone          = inject(NgZone);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private ws = inject(WebSocketService);
+  private ngZone = inject(NgZone);
   readonly videoCallService = inject(VideoCallService);
 
   private subs = new Subscription();
@@ -130,7 +130,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   // ── Lifecycle ────────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
-    this.roomId  = this.route.snapshot.paramMap.get('roomId') ?? '';
+    this.roomId = this.route.snapshot.paramMap.get('roomId') ?? '';
     this.username = this.route.snapshot.queryParamMap.get('user') ?? '';
 
     if (!this.username || !this.roomId) {
@@ -164,7 +164,7 @@ export class RoomComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent): void {
-    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
 
     if (!this.isInMessageMode) {
       this.pressedKeys.add(e.code);
@@ -232,7 +232,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   @HostListener('document:touchend')
   onPointerUp(): void {
     this.draggingWindowId = null;
-    this.draggingVideoId  = null;
+    this.draggingVideoId = null;
   }
 
   private handleChatDragMove(clientX: number, clientY: number): void {
@@ -259,9 +259,9 @@ export class RoomComponent implements OnInit, OnDestroy {
         let dx = 0, dy = 0;
 
         if (!this.isInMessageMode) {
-          if (this.pressedKeys.has('ArrowUp')    || this.pressedKeys.has('KeyW')) dy -= this.SPEED;
-          if (this.pressedKeys.has('ArrowDown')  || this.pressedKeys.has('KeyS')) dy += this.SPEED;
-          if (this.pressedKeys.has('ArrowLeft')  || this.pressedKeys.has('KeyA')) dx -= this.SPEED;
+          if (this.pressedKeys.has('ArrowUp') || this.pressedKeys.has('KeyW')) dy -= this.SPEED;
+          if (this.pressedKeys.has('ArrowDown') || this.pressedKeys.has('KeyS')) dy += this.SPEED;
+          if (this.pressedKeys.has('ArrowLeft') || this.pressedKeys.has('KeyA')) dx -= this.SPEED;
           if (this.pressedKeys.has('ArrowRight') || this.pressedKeys.has('KeyD')) dx += this.SPEED;
         }
 
@@ -309,7 +309,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   private updateProximity(): void {
     const nearby = this.otherPlayers()
       .filter(p => Math.abs(p.x - this.avatarX) < this.PROXIMITY_THRESHOLD
-                && Math.abs(p.y - this.avatarY) < this.PROXIMITY_THRESHOLD)
+        && Math.abs(p.y - this.avatarY) < this.PROXIMITY_THRESHOLD)
       .map(p => p.username);
 
     this.nearbyPlayers.set(nearby);
@@ -322,12 +322,15 @@ export class RoomComponent implements OnInit, OnDestroy {
   // ── Chat windows ──────────────────────────────────────────────────────────────
 
   openChat(partnerUsername: string): void {
+    // If window already exists, just focus it — don't re-fetch
     if (this.chatWindows().find(w => w.id === partnerUsername)) {
       this.bringToFront(partnerUsername);
       return;
     }
 
     const offset = this.chatWindows().length * 30;
+
+    // Open the window immediately with an empty messages array
     this.chatWindows.update(wins => [...wins, {
       id: partnerUsername,
       partnerUsername,
@@ -336,7 +339,35 @@ export class RoomComponent implements OnInit, OnDestroy {
       position: { x: 80 + offset, y: 100 + offset },
       zIndex: ++this.topZIndex,
     }]);
+
+    // Fetch chat history in the background and back-fill
+    this.api.getMessages({
+      person_a: this.username,
+      person_b: partnerUsername,
+      room_code: this.roomId,
+    }).subscribe({
+      next: (res) => {
+        if (res.status !== 200 || !res.data?.length) return;
+
+        const history = res.data.map(r => ({
+          text: r.message,
+          sent: r.sender === this.username,
+          timestamp: new Date(r.created_at),
+        }));
+
+        // Merge: place history before any messages that arrived live during the fetch
+        this.chatWindows.update(wins =>
+          wins.map(w =>
+            w.id === partnerUsername
+              ? { ...w, messages: [...history, ...w.messages.filter(m => !history.some(h => h.text === m.text && h.sent === m.sent))] }
+              : w
+          )
+        );
+      },
+      error: () => { /* history unavailable — silent fail, chat still works */ }
+    });
   }
+
 
   closeChat(windowId: string): void {
     this.chatWindows.update(wins => wins.filter(w => w.id !== windowId));
@@ -428,8 +459,8 @@ export class RoomComponent implements OnInit, OnDestroy {
     });
   }
 
-  toggleMute(partnerId: string)    { this.videoCallService.toggleMute(partnerId); }
-  toggleCamera(partnerId: string)  { this.videoCallService.toggleCamera(partnerId); }
+  toggleMute(partnerId: string) { this.videoCallService.toggleMute(partnerId); }
+  toggleCamera(partnerId: string) { this.videoCallService.toggleCamera(partnerId); }
   bringVideoToFront(partnerId: string) { this.videoCallService.bringToFront(partnerId); }
 
   // ── WebSocket ────────────────────────────────────────────────────────────────
@@ -442,6 +473,10 @@ export class RoomComponent implements OnInit, OnDestroy {
         next: (connected) => {
           this.wsConnected = connected;
           if (connected) this.toast.success(`Connected to room "${this.roomId}"`);
+          if (!connected) {
+            this.toast.error('Disconnected from room. Please try again.');
+            setTimeout(() => this.router.navigate(['/login'], { queryParams: { user: this.username } }), 1500);
+          }
         },
         error: () => {
           this.toast.error('Server rejected the connection. Please re-login.');
@@ -467,6 +502,17 @@ export class RoomComponent implements OnInit, OnDestroy {
             x: Math.round(this.avatarX * 100) / 100,
             y: Math.round(this.avatarY * 100) / 100,
           });
+          console.log("position message from server")
+        }
+
+        // ── User left the room ──
+        if (msg.type === 'left-room' && msg.username) {
+          this.toast.info(`${msg.username} left the room`);
+          this.userLeft(msg.username)
+        }
+
+        if (msg.type === 'destroy' && msg.username) {
+          this.toast.info(`Admin ${msg.username} has destroyed the room`);
         }
 
         // ── Text chat ──
@@ -565,5 +611,18 @@ export class RoomComponent implements OnInit, OnDestroy {
         setTimeout(() => this.router.navigate(['/login'], { queryParams: { user: this.username } }), 1500);
       }
     });
+  }
+
+  private userLeft(username: string): void {
+    this.otherPlayers.update(players => {
+      const idx = players.findIndex(p => p.username === username);
+      if (idx !== -1) {
+        const updated = [...players];
+        updated.splice(idx, 1);
+        return updated;
+      }
+      return [...players];
+    });
+    this.updateProximity();
   }
 }

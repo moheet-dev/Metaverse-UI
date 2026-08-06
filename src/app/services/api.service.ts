@@ -39,6 +39,26 @@ export interface ApiResponse {
   };
 }
 
+/** Chat history — POST /all-messages */
+export interface MessagesRequest {
+  person_a: string;
+  person_b: string;
+  room_code: string;
+}
+
+export interface MessageRecord {
+  id: number;
+  sender: string;
+  receiver: string;
+  message: string;
+  created_at: string;
+}
+
+export interface MessagesResponse {
+  status: number;
+  data: MessageRecord[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -70,5 +90,10 @@ export class ApiService {
   /** Leave a room → PUT /leave-room */
   leaveRoom(data: LeaveRoomRequest): Observable<ApiResponse> {
     return this.http.put<ApiResponse>(`${this.BASE_URL}/leave-room`, data);
+  }
+
+  /** Fetch chat history between two users in a room → POST /all-messages */
+  getMessages(data: MessagesRequest): Observable<MessagesResponse> {
+    return this.http.post<MessagesResponse>(`${this.BASE_URL}/all-messages`, data);
   }
 }
