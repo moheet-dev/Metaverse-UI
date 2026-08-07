@@ -63,7 +63,7 @@ export interface MessagesResponse {
   providedIn: 'root'
 })
 export class ApiService {
-  private readonly BASE_URL = 'http://localhost:8000';
+  private readonly BASE_URL = 'https://metaverse-backend-mkst.onrender.com';
 
   constructor(private http: HttpClient) { }
 
