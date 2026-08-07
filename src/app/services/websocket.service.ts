@@ -23,7 +23,7 @@ export class WebSocketService {
       return;
     }
 
-    const url = `ws://metaverse-backend-mkst.onrender.com/ws/${roomId}/${username}`;
+    const url = `wss://metaverse-backend-mkst.onrender.com/ws/${roomId}/${username}`;
     this.socket = new WebSocket(url);
 
     this.socket.onopen = () => {
