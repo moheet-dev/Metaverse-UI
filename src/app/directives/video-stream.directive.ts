@@ -19,8 +19,10 @@ export class VideoStreamDirective {
     if (src) {
       if (video.srcObject !== src) {
         video.srcObject = src;
-        // Auto-play once stream is assigned (handles browsers that need it)
-        video.play().catch(() => { /* autoplay policy — user interaction needed */ });
+        video.muted = true; // guarantees autoplay is allowed
+        video.play()
+          .then(() => { video.muted = false; }) // unmute once playing
+          .catch((err: any) => console.warn('[VideoStream] play() blocked:', err.name, err.message));
       }
     } else {
       video.srcObject = null;

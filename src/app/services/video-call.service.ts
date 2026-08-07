@@ -86,7 +86,6 @@ export class VideoCallService {
     if (this.getSession(fromId)) return;
 
     const peer = this.createPeer(myId, fromId, send);
-    await peer.setRemoteDescription(offer);
 
     const session: VideoCallSession = {
       partnerId: fromId,
@@ -103,6 +102,7 @@ export class VideoCallService {
 
     this.sessions.update(ss => [...ss, session]);
 
+    await peer.setRemoteDescription(offer);
     // Flush any ICE candidates that arrived before the offer was processed
     await this.flushPendingCandidates(fromId);
   }
@@ -255,10 +255,11 @@ export class VideoCallService {
     peer.ontrack = (event) => {
       const remoteStream = event.streams[0] ?? new MediaStream([event.track]);
       this.sessions.update(ss =>
-        ss.map(s => s.partnerId === partnerId
-          ? { ...s, remoteStream, state: 'connected' as CallState }
-          : s
-        )
+        ss.map(s => {
+          if (s.partnerId !== partnerId) return s;
+          const nextState: CallState = s.state === 'incoming' ? 'incoming' : 'connected';
+          return { ...s, remoteStream, state: nextState };
+        })
       );
     };
 
